@@ -1,0 +1,74 @@
+#I ran in a command window to create this file in the world of ood. 
+cd /home/j.correanarvaez/ps5/
+cp /blue/bsc4452/share/Class_Files/data/world.sqlite /home/j.correanarvaez/ps5/world.sqlite
+#Everything after is in Jupyter hub; the lines represent a separate Jupyter cell
+------------------------------------------------------------------------------------------
+#imports
+import sqlite3
+import pandas as pd
+from sqlalchemy import create_engine
+from sqlalchemy import Table, Column, Integer, String
+from sqlalchemy import sql, select, join, desc
+from sqlalchemy import MetaData, ForeignKey
+------------------------------------------------------------------------------------------
+#Using sqlite3 to see the column names
+#https://stackoverflow.com/questions/7831371/is-there-a-way-to-get-a-list-of-column-names-in-sqlite
+conn = sqlite3.connect('/home/j.correanarvaez/ps5/world.sqlite')
+cur = conn.cursor()
+cur.execute('SELECT * FROM country')
+cnames = cur.fetchone()
+print(cur.description)
+------------------------------------------------------------------------------------------
+#QUESTION 1: very simple way to get the most recent Year of Independence
+cur.execute('SELECT Name, max(IndepYear) FROM country')
+for row in cur:
+    print(row)
+------------------------------------------------------------------------------------------
+#QUESTION 2: Added a new country
+#Name 'Republic_of_Serbia' , Continent 'Europe', Region "Eastern_Europe" SurfaceArea 88361.0, IndepYear 2006, Population 6963764, LifeExpectancy 76.1, LocalName 'Serbia/Srbija'
+cur.execute('INSERT INTO country (Name, Continent, Region, SurfaceArea, IndepYear, Population, LifeExpectancy, LocalName) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            ('Republic_of_Serbia', 'Europe', 'Eastern_Europe', 88361.0, 2006, 6963764, 76.1, 'Serbia/Srbija'))
+conn.commit()
+#Can only be done once
+------------------------------------------------------------------------------------------
+#And here we go the new Year! just as a test. Worth
+cur.execute('SELECT Name, max(IndepYear) FROM country')
+for row in cur:
+    print(row)
+------------------------------------------------------------------------------------------
+cur.execute('SELECT * FROM city')
+print(cur.description)
+------------------------------------------------------------------------------------------
+#QUESTION 3: Adding Two cities
+cur.execute('INSERT INTO city (ID, Name, CountryCode, District, Population) VALUES (?, ?, ?, ?, ?)',
+            (1234571, 'Subotica', 'Serbia', 'North Bačka', 97910.0))
+cur.execute('INSERT INTO city (ID, Name, CountryCode, District, Population) VALUES (?, ?, ?, ?, ?)',
+            (1234572, 'Belgrade', 'Serbia', 'Belgrade', 1166763.0))
+conn.commit()
+------------------------------------------------------------------------------------------
+#showing it worked
+cur.execute('SELECT max(ID), Name, CountryCode, District, Population FROM city LIMIT 5')
+for row in cur:
+    print(row)
+------------------------------------------------------------------------------------------
+#Shifting to sqlalchemy
+engine = create_engine('sqlite:////home/j.correanarvaez/ps5/world.sqlite')
+
+# Connect to the database
+conn = engine.connect()
+
+# Read the metadata from the existing database.
+#  Since the database already exists and has tables defined, we can create Python objects based on these automatically.
+DBInfo=MetaData(engine)
+------------------------------------------------------------------------------------------
+#Creating a system that will let me have a query for Panda
+CTpopV=Table('country', DBInfo, autoload=True)
+query=select([CTpopV.c.Code, CTpopV.c.Name, CTpopV.c.Population, CTpopV.c.LifeExpectancy, CTpopV.c.GNP])
+------------------------------------------------------------------------------------------
+#QUESTION 4: And using Panda to graph the points. I used a log for the x axis so it displays better
+df=pd.read_sql(query, conn, index_col='Code')
+#df=pd.read_sql(query, conn)
+df.head()
+
+df.plot.scatter(x='Population', y='LifeExpectancy', logx=True)
+------------------------------------------------------------------------------------------
